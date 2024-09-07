@@ -1,0 +1,16 @@
+{
+  "name": "notepadi",
+  "version": "1.0.0",
+  "description": "A simple real-time notepad using Node.js, Express, and Socket.IO",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "fs": "0.0.1-security",
+    "socket.io": "^4.7.2"
+  },
+  "author": "",
+  "license": "ISC"
+}

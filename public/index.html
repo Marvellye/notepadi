@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realtime Notepad</title>
+    <title>Notepadi | Realtime Notepad</title>
 </head>
 <body>
-    <h1>Notepadi </h1>
+    <h1>Notepadi</h1>
     <textarea id="note" rows="10" cols="50" placeholder="Start typing..."></textarea>
-
+    <br>
+    <button id="addPasswordBtn">+ Add Password</button>
+    <div id="passwordContainer"></div>
+    <footer><h6>code by marvelly</h6></footer>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -18,24 +21,71 @@
 
         // Load existing notes
         socket.on('loadNotes', (notes) => {
-            if (notes[noteId]) {
-                noteField.value = notes[noteId];
+            if (notes.text) {
+                noteField.value = notes.text;
+            }
+            if (notes.passwords) {
+                notes.passwords.forEach((password, index) => {
+                    addPasswordSection(password.title, password.username, password.password, index);
+                });
             }
         });
 
-        // Listen for changes in the textarea
+        // Save text notes
         noteField.addEventListener('keyup', () => {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 const content = noteField.value;
                 socket.emit('saveNote', { id: noteId, content });
-            }, 1500);
+            }, 1000);
         });
 
-        // Update note in real-time when other clients make changes
-        socket.on('noteUpdated', (data) => {
-            if (data.id === noteId) {
-                noteField.value = data.content;
+        // Handle "Add Password" button click
+        document.getElementById('addPasswordBtn').addEventListener('click', () => {
+            addPasswordSection();
+        });
+
+        // Function to add a password section
+        function addPasswordSection(title = '', username = '', password = '', index = null) {
+            const container = document.getElementById('passwordContainer');
+            const passwordSection = document.createElement('div');
+
+            passwordSection.innerHTML = `
+                <input type="text" placeholder="Title (optional)" value="${title}">
+                <input type="text" placeholder="Username/Email/Phone" value="${username}" required>
+                <input type="password" placeholder="Password" value="${password}" required>
+            `;
+
+            container.appendChild(passwordSection);
+
+            const inputs = passwordSection.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('keyup', () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        const data = {
+                            title: inputs[0].value,
+                            username: inputs[1].value,
+                            password: inputs[2].value,
+                            index: index !== null ? index : container.childElementCount - 1
+                        };
+                        socket.emit('savePassword', data);
+                    }, 1000);
+                });
+            });
+        }
+
+        // Update password section in real-time when other clients make changes
+        socket.on('passwordUpdated', (data) => {
+            const container = document.getElementById('passwordContainer');
+            const existingSections = container.children;
+            if (data.index < existingSections.length) {
+                const inputs = existingSections[data.index].querySelectorAll('input');
+                inputs[0].value = data.title;
+                inputs[1].value = data.username;
+                inputs[2].value = data.password;
+            } else {
+                addPasswordSection(data.title, data.username, data.password, data.index);
             }
         });
     </script>

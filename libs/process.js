@@ -46,29 +46,6 @@ module.exports = {
         saveData();
     },
 
-    saveCategory: (category) => {
-        const existingIndex = data.categories.findIndex(c => c.id === category.id);
-        if (existingIndex !== -1) {
-            data.categories[existingIndex] = category;
-        } else {
-            data.categories.push(category);
-        }
-        saveData();
-    },
-
-    deleteCategory: (id) => {
-        data.categories = data.categories.filter(c => c.id !== id);
-        saveData();
-    },
-
-    deleteNote: (categoryId, noteId) => {
-        const category = data.categories.find(c => c.id === categoryId);
-        if (category) {
-            category.notes = category.notes.filter(n => n.id !== noteId);
-            saveData();
-        }
-    },
-
     searchNotes: (query) => {
         return data.categories
             .flatMap(category => category.notes)

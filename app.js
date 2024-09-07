@@ -36,21 +36,6 @@ io.on('connection', (socket) => {
         io.emit('passwordDeleted', id);
     });
 
-    socket.on('saveCategory', (data) => {
-        process.saveCategory(data);
-        io.emit('categoryUpdated', data);
-    });
-
-    socket.on('deleteCategory', (id) => {
-        process.deleteCategory(id);
-        io.emit('categoryDeleted', id);
-    });
-
-    socket.on('deleteNote', (categoryId, noteId) => {
-        process.deleteNote(categoryId, noteId);
-        io.emit('noteDeleted', { categoryId, noteId });
-    });
-
     socket.on('searchNotes', (query) => {
         const results = process.searchNotes(query);
         socket.emit('searchResults', results);

@@ -7,120 +7,123 @@
 </head>
 <body>
     <h1>Notepadi</h1>
-    <textarea id="note" rows="10" cols="50" placeholder="Start typing..."></textarea>
-    <br>
+
+    <h2>Quicknote</h2>
+    <textarea id="quicknote" rows="5" cols="50" placeholder="Start typing..."></textarea>
+    <button id="resetQuicknoteBtn">Reset Text</button>
+    <br><br>
+
+    <h2>Password Section</h2>
     <button id="addPasswordBtn">+ Add Password</button>
-    <button id="refreshPasswordsBtn">Refresh Passwords</button>
     <div id="passwordContainer"></div>
+    <button id="refreshPasswordsBtn">Refresh</button>
+    <br><br>
+
+    <h2>Notes Section</h2>
+    <input type="text" id="categorySearch" placeholder="Search by title">
+    <button id="addCategoryBtn">+ Add Category</button>
+    <div id="categoryContainer"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const noteField = document.getElementById('note');
-        const noteId = 'note1';
 
-        socket.on('loadNotes', (notes) => {
-            if (notes.text) {
-                noteField.value = notes.text;
+        // Quicknote handling
+        const quicknoteField = document.getElementById('quicknote');
+
+        socket.on('loadData', (data) => {
+            // Load Quicknote
+            if (data.quicknote) {
+                quicknoteField.value = data.quicknote;
             }
-            if (notes.passwords) {
-                const container = document.getElementById('passwordContainer');
-                container.innerHTML = '';
-                notes.passwords.forEach(password => {
+
+            // Load Passwords
+            if (data.passwords) {
+                const passwordContainer = document.getElementById('passwordContainer');
+                passwordContainer.innerHTML = '';
+                data.passwords.forEach(password => {
                     addPasswordSection(password.id, password.title, password.username, password.password, false);
+                });
+            }
+
+            // Load Categories
+            if (data.categories) {
+                const container = document.getElementById('categoryContainer');
+                container.innerHTML = '';
+                data.categories.forEach(category => {
+                    addCategorySection(category.id, category.name, category.notes, false);
                 });
             }
         });
 
-        noteField.addEventListener('keyup', () => {
-            const content = noteField.value;
-            socket.emit('saveNote', { id: noteId, content });
+        quicknoteField.addEventListener('keyup', () => {
+            const content = quicknoteField.value;
+            socket.emit('saveQuickNote', { content });
         });
 
+        document.getElementById('resetQuicknoteBtn').addEventListener('click', () => {
+            socket.emit('resetQuickNote');
+        });
+
+        socket.on('quicknoteReset', () => {
+            quicknoteField.value = '';
+        });
+
+        // Password handling
         document.getElementById('addPasswordBtn').addEventListener('click', () => {
             addPasswordSection();
         });
 
         document.getElementById('refreshPasswordsBtn').addEventListener('click', () => {
-            socket.emit('refreshPasswords');
+            socket.emit('loadData');
+        });
+
+        socket.on('passwordDeleted', (id) => {
+            document.querySelector(`[data-password-id="${id}"]`).remove();
         });
 
         function addPasswordSection(id = null, title = '', username = '', password = '', isEditable = true) {
             const container = document.getElementById('passwordContainer');
+            const uniqueId = id || uuidv4();
             const passwordSection = document.createElement('div');
-            const uniqueId = id || Date.now().toString();
 
+            passwordSection.dataset.passwordId = uniqueId;
             passwordSection.innerHTML = `
                 <input type="text" placeholder="Title (optional)" value="${title}" ${!isEditable ? 'readonly' : ''}>
-                <input type="text" placeholder="Username/Email/Phone" value="${username}" required ${!isEditable ? 'readonly' : ''}>
-                <input type="password" placeholder="Password" value="${password}" required ${!isEditable ? 'readonly' : ''}>
-                <button class="saveBtn" ${!isEditable ? 'style="display:none;"' : ''}>Save</button>
-                <button class="editBtn" ${isEditable ? 'style="display:none;"' : ''}>Edit</button>
-                <button class="deleteBtn">Delete</button>
-                <br><br>
+                <input type="text" placeholder="Username/Email/Phone" value="${username}" ${!isEditable ? 'readonly' : ''} required>
+                <input type="text" placeholder="Password" value="${password}" ${!isEditable ? 'readonly' : ''} required>
+                <button class="savePasswordBtn" ${!isEditable ? 'style="display:none;"' : ''}>Save</button>
+                <button class="editPasswordBtn" ${isEditable ? 'style="display:none;"' : ''}>Edit</button>
+                <button class="deletePasswordBtn">Delete</button>
+                <br>
             `;
 
             container.appendChild(passwordSection);
 
-            const inputs = passwordSection.querySelectorAll('input');
-            const saveBtn = passwordSection.querySelector('.saveBtn');
-            const editBtn = passwordSection.querySelector('.editBtn');
-            const deleteBtn = passwordSection.querySelector('.deleteBtn');
+            const savePasswordBtn = passwordSection.querySelector('.savePasswordBtn');
+            const editPasswordBtn = passwordSection.querySelector('.editPasswordBtn');
+            const deletePasswordBtn = passwordSection.querySelector('.deletePasswordBtn');
 
-            saveBtn.addEventListener('click', () => {
+            savePasswordBtn.addEventListener('click', () => {
                 const data = {
                     id: uniqueId,
-                    title: inputs[0].value,
-                    username: inputs[1].value,
-                    password: inputs[2].value
+                    title: passwordSection.querySelector('input:nth-child(1)').value,
+                    username: passwordSection.querySelector('input:nth-child(2)').value,
+                    password: passwordSection.querySelector('input:nth-child(3)').value
                 };
                 socket.emit('savePassword', data);
-                toggleEditable(passwordSection, false);
+                togglePasswordEditable(passwordSection, false);
             });
 
-            editBtn.addEventListener('click', () => {
-                toggleEditable(passwordSection, true);
+            editPasswordBtn.addEventListener('click', () => {
+                togglePasswordEditable(passwordSection, true);
             });
 
-            deleteBtn.addEventListener('click', () => {
+            deletePasswordBtn.addEventListener('click', () => {
                 socket.emit('deletePassword', uniqueId);
-                container.removeChild(passwordSection);
             });
         }
 
-        function toggleEditable(section, isEditable) {
-            const inputs = section.querySelectorAll('input');
-            const saveBtn = section.querySelector('.saveBtn');
-            const editBtn = section.querySelector('.editBtn');
-
-            inputs.forEach(input => {
-                input.readOnly = !isEditable;
-            });
-
-            saveBtn.style.display = isEditable ? 'inline' : 'none';
-            editBtn.style.display = isEditable ? 'none' : 'inline';
-        }
-
-        socket.on('passwordUpdated', (data) => {
-            const container = document.getElementById('passwordContainer');
-            const existingSections = container.children;
-            Array.from(existingSections).forEach(section => {
-                const inputs = section.querySelectorAll('input');
-                if (inputs[0].value === data.title && inputs[1].value === data.username && inputs[2].value === data.password) {
-                    toggleEditable(section, false);
-                }
-            });
-        });
-
-        socket.on('passwordDeleted', (id) => {
-            const container = document.getElementById('passwordContainer');
-            Array.from(container.children).forEach(section => {
-                const inputs = section.querySelectorAll('input');
-                if (inputs[0].value === id) {
-                    container.removeChild(section);
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+        function togglePasswordEditable(section, isEditable) {
+            section.querySelector('input:nth-child(1)').readOnly = !isEditable;
+            section.querySelector('input:nth-child(2)').readOnly = !isEditable

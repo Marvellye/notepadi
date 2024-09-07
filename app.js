@@ -45,6 +45,10 @@ io.on('connection', (socket) => {
         fs.writeFileSync(FILE_PATH, JSON.stringify(notes));
         io.emit('passwordDeleted', id);
     });
+
+    socket.on('refreshPasswords', () => {
+        socket.emit('loadNotes', notes);
+    });
 });
 
 server.listen(PORT, () => {

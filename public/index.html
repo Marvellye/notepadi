@@ -10,6 +10,7 @@
     <textarea id="note" rows="10" cols="50" placeholder="Start typing..."></textarea>
     <br>
     <button id="addPasswordBtn">+ Add Password</button>
+    <button id="refreshPasswordsBtn">Refresh Passwords</button>
     <div id="passwordContainer"></div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -23,6 +24,8 @@
                 noteField.value = notes.text;
             }
             if (notes.passwords) {
+                const container = document.getElementById('passwordContainer');
+                container.innerHTML = '';
                 notes.passwords.forEach(password => {
                     addPasswordSection(password.id, password.title, password.username, password.password, false);
                 });
@@ -36,6 +39,10 @@
 
         document.getElementById('addPasswordBtn').addEventListener('click', () => {
             addPasswordSection();
+        });
+
+        document.getElementById('refreshPasswordsBtn').addEventListener('click', () => {
+            socket.emit('refreshPasswords');
         });
 
         function addPasswordSection(id = null, title = '', username = '', password = '', isEditable = true) {

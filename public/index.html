@@ -68,7 +68,7 @@
             quicknoteTimeout = setTimeout(() => {
                 const content = quicknoteField.value;
                 socket.emit('saveQuickNote', { content });
-            }, 1000); // Adjust latency here
+            }, 700); // Adjust latency here
         });
 
         document.getElementById('resetQuicknoteBtn').addEventListener('click', () => {

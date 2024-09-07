@@ -24,7 +24,7 @@ io.on('connection', (socket) => {
         quicknoteTimeout = setTimeout(() => {
             process.saveQuickNote(data.content);
             socket.broadcast.emit('quicknoteUpdated', data.content); // Broadcast update to other clients
-        }, 1000); // Adjust latency here
+        }, 700); // Adjust latency here
     });
 
     socket.on('resetQuickNote', () => {

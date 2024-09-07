@@ -48,12 +48,14 @@
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuid.min.js"></script>
     <script>
         const socket = io();
+        let quicknoteTimeout;
 
         // Quicknote handling
         const quicknoteField = document.getElementById('quicknote');
 
         // Listen for Quicknote updates from the server
         socket.on('quicknoteUpdated', (content) => {
+            if (quicknoteField.value === content) return; // Avoid updating if it’s the same content
             quicknoteField.value = content;
         });
 
@@ -62,8 +64,11 @@
         });
 
         quicknoteField.addEventListener('keyup', () => {
-            const content = quicknoteField.value;
-            socket.emit('saveQuickNote', { content });
+            if (quicknoteTimeout) clearTimeout(quicknoteTimeout);
+            quicknoteTimeout = setTimeout(() => {
+                const content = quicknoteField.value;
+                socket.emit('saveQuickNote', { content });
+            }, 1000); // Adjust latency here
         });
 
         document.getElementById('resetQuicknoteBtn').addEventListener('click', () => {
@@ -83,6 +88,17 @@
 
         document.getElementById('refreshPasswordsBtn').addEventListener('click', () => {
             socket.emit('loadData');
+        });
+
+        socket.on('passwordUpdated', (data) => {
+            const section = document.querySelector(`[data-password-id="${data.id}"]`);
+            if (section) {
+                section.querySelector('input:nth-child(1)').value = data.title;
+                section.querySelector('input:nth-child(2)').value = data.username;
+                section.querySelector('input:nth-child(3)').value = data.password;
+            } else {
+                addPasswordSection(data.id, data.title, data.username, data.password, false);
+            }
         });
 
         socket.on('passwordDeleted', (id) => {

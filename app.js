@@ -17,10 +17,14 @@ io.on('connection', (socket) => {
     // Send initial data to the client
     socket.emit('loadData', process.getData());
 
-    // Handle Quicknote updates
+    // Handle Quicknote updates with latency
+    let quicknoteTimeout;
     socket.on('saveQuickNote', (data) => {
-        process.saveQuickNote(data.content);
-        io.emit('quicknoteUpdated', data.content); // Broadcast update to all clients
+        if (quicknoteTimeout) clearTimeout(quicknoteTimeout);
+        quicknoteTimeout = setTimeout(() => {
+            process.saveQuickNote(data.content);
+            socket.broadcast.emit('quicknoteUpdated', data.content); // Broadcast update to other clients
+        }, 1000); // Adjust latency here
     });
 
     socket.on('resetQuickNote', () => {

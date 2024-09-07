@@ -11,27 +11,25 @@
     <br>
     <button id="addPasswordBtn">+ Add Password</button>
     <div id="passwordContainer"></div>
-    <footer><h6>code by marvelly</h6></footer>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const noteField = document.getElementById('note');
-        const noteId = 'note1';  // Assuming a single note for simplicity
+        const noteId = 'note1';
         let saveTimeout;
 
-        // Load existing notes
         socket.on('loadNotes', (notes) => {
             if (notes.text) {
                 noteField.value = notes.text;
             }
             if (notes.passwords) {
-                notes.passwords.forEach((password, index) => {
-                    addPasswordSection(password.title, password.username, password.password, index);
+                notes.passwords.forEach(password => {
+                    addPasswordSection(password.id, password.title, password.username, password.password);
                 });
             }
         });
 
-        // Save text notes
         noteField.addEventListener('keyup', () => {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
@@ -40,53 +38,76 @@
             }, 1000);
         });
 
-        // Handle "Add Password" button click
         document.getElementById('addPasswordBtn').addEventListener('click', () => {
             addPasswordSection();
         });
 
-        // Function to add a password section
-        function addPasswordSection(title = '', username = '', password = '', index = null) {
+        function addPasswordSection(id = null, title = '', username = '', password = '') {
             const container = document.getElementById('passwordContainer');
             const passwordSection = document.createElement('div');
+            const uniqueId = id || Date.now().toString();
 
             passwordSection.innerHTML = `
                 <input type="text" placeholder="Title (optional)" value="${title}">
                 <input type="text" placeholder="Username/Email/Phone" value="${username}" required>
                 <input type="password" placeholder="Password" value="${password}" required>
+                <button class="deleteBtn">Delete</button>
+                <br><br>
             `;
 
             container.appendChild(passwordSection);
 
             const inputs = passwordSection.querySelectorAll('input');
+            const deleteBtn = passwordSection.querySelector('.deleteBtn');
+
+            const saveData = () => {
+                const data = {
+                    id: uniqueId,
+                    title: inputs[0].value,
+                    username: inputs[1].value,
+                    password: inputs[2].value
+                };
+                socket.emit('savePassword', data);
+            };
+
             inputs.forEach(input => {
                 input.addEventListener('keyup', () => {
                     clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(() => {
-                        const data = {
-                            title: inputs[0].value,
-                            username: inputs[1].value,
-                            password: inputs[2].value,
-                            index: index !== null ? index : container.childElementCount - 1
-                        };
-                        socket.emit('savePassword', data);
-                    }, 1000);
+                    saveTimeout = setTimeout(saveData, 1000);
                 });
+            });
+
+            deleteBtn.addEventListener('click', () => {
+                socket.emit('deletePassword', uniqueId);
             });
         }
 
-        // Update password section in real-time when other clients make changes
         socket.on('passwordUpdated', (data) => {
             const container = document.getElementById('passwordContainer');
             const existingSections = container.children;
-            if (data.index < existingSections.length) {
-                const inputs = existingSections[data.index].querySelectorAll('input');
-                inputs[0].value = data.title;
-                inputs[1].value = data.username;
-                inputs[2].value = data.password;
-            } else {
-                addPasswordSection(data.title, data.username, data.password, data.index);
+            let sectionFound = false;
+            Array.from(existingSections).forEach((section, index) => {
+                if (section.querySelectorAll('input')[0].value === data.id) {
+                    const inputs = section.querySelectorAll('input');
+                    inputs[0].value = data.title;
+                    inputs[1].value = data.username;
+                    inputs[2].value = data.password;
+                    sectionFound = true;
+                }
+            });
+
+            if (!sectionFound) {
+                addPasswordSection(data.id, data.title, data.username, data.password);
             }
+        });
+
+        socket.on('passwordDeleted', (id) => {
+            const container = document.getElementById('passwordContainer');
+            Array.from(container.children).forEach(section => {
+                if (section.querySelectorAll('input')[0].value === id) {
+                    container.removeChild(section);
+                }
+            });
         });
     </script>
 </body>

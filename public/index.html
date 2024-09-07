@@ -6,7 +6,7 @@
     <title>Realtime Notepad</title>
 </head>
 <body>
-    <h1>Realtime Notepad</h1>
+    <h1>Notepadi </h1>
     <textarea id="note" rows="10" cols="50" placeholder="Start typing..."></textarea>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -29,7 +29,7 @@
             saveTimeout = setTimeout(() => {
                 const content = noteField.value;
                 socket.emit('saveNote', { id: noteId, content });
-            }, 100);
+            }, 1500);
         });
 
         // Update note in real-time when other clients make changes

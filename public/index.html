@@ -3,28 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notepadi | Realtime Notepad</title>
+    <title>Realtime Notepad</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            margin: 20px;
+        }
+        .password-section, .category-section, .note-section {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Notepadi</h1>
+    <h1>Realtime Notepad</h1>
 
-    <h2>Quicknote</h2>
-    <textarea id="quicknote" rows="5" cols="50" placeholder="Start typing..."></textarea>
-    <button id="resetQuicknoteBtn">Reset Text</button>
-    <br><br>
+    <div class="container">
+        <h2>Quicknote</h2>
+        <textarea id="quicknote" rows="5" cols="50" placeholder="Start typing..."></textarea>
+        <button id="resetQuicknoteBtn">Reset Text</button>
+    </div>
 
-    <h2>Password Section</h2>
-    <button id="addPasswordBtn">+ Add Password</button>
-    <div id="passwordContainer"></div>
-    <button id="refreshPasswordsBtn">Refresh</button>
-    <br><br>
+    <div class="container">
+        <h2>Password Section</h2>
+        <button id="addPasswordBtn">+ Add Password</button>
+        <div id="passwordContainer" class="password-section"></div>
+        <button id="refreshPasswordsBtn">Refresh</button>
+    </div>
 
-    <h2>Notes Section</h2>
-    <input type="text" id="categorySearch" placeholder="Search by title">
-    <button id="addCategoryBtn">+ Add Category</button>
-    <div id="categoryContainer"></div>
+    <div class="container">
+        <h2>Notes Section</h2>
+        <input type="text" id="categorySearch" placeholder="Search by title">
+        <button id="addCategoryBtn">+ Add Category</button>
+        <div id="categoryContainer" class="category-section"></div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuid.min.js"></script>
     <script>
         const socket = io();
 
@@ -84,10 +100,11 @@
 
         function addPasswordSection(id = null, title = '', username = '', password = '', isEditable = true) {
             const container = document.getElementById('passwordContainer');
-            const uniqueId = id || uuidv4();
+            const uniqueId = id || uuid.v4();
             const passwordSection = document.createElement('div');
 
             passwordSection.dataset.passwordId = uniqueId;
+            passwordSection.classList.add('password-section');
             passwordSection.innerHTML = `
                 <input type="text" placeholder="Title (optional)" value="${title}" ${!isEditable ? 'readonly' : ''}>
                 <input type="text" placeholder="Username/Email/Phone" value="${username}" ${!isEditable ? 'readonly' : ''} required>
@@ -126,4 +143,147 @@
 
         function togglePasswordEditable(section, isEditable) {
             section.querySelector('input:nth-child(1)').readOnly = !isEditable;
-            section.querySelector('input:nth-child(2)').readOnly = !isEditable
+            section.querySelector('input:nth-child(2)').readOnly = !isEditable;
+            section.querySelector('input:nth-child(3)').readOnly = !isEditable;
+            section.querySelector('.savePasswordBtn').style.display = isEditable ? '' : 'none';
+            section.querySelector('.editPasswordBtn').style.display = isEditable ? 'none' : '';
+        }
+
+        // Notes handling
+        document.getElementById('addCategoryBtn').addEventListener('click', () => {
+            addCategorySection();
+        });
+
+        document.getElementById('categorySearch').addEventListener('input', (event) => {
+            const query = event.target.value;
+            socket.emit('searchNotes', query);
+        });
+
+        socket.on('searchResults', (results) => {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = '';
+            results.forEach(result => {
+                const resultElement = document.createElement('div');
+                resultElement.innerText = `Title: ${result.title}, Content: ${result.content}`;
+                container.appendChild(resultElement);
+            });
+        });
+
+        function addCategorySection(id = null, name = '', notes = [], isEditable = true) {
+            const container = document.getElementById('categoryContainer');
+            const categorySection = document.createElement('div');
+            const uniqueId = id || uuid.v4();
+
+            categorySection.innerHTML = `
+                <select ${!isEditable ? 'disabled' : ''}>
+                    <option value="${name}">${name}</option>
+                </select>
+                <input type="text" placeholder="New Category Name" value="${name}" ${!isEditable ? 'readonly' : ''}>
+                <button class="saveCategoryBtn" ${!isEditable ? 'style="display:none;"' : ''}>Save</button>
+                <button class="editCategoryBtn" ${isEditable ? 'style="display:none;"' : ''}>Edit</button>
+                <button class="deleteCategoryBtn">Delete Category</button>
+                <br>
+                <button class="addNoteBtn">+ Add Note</button>
+                <div class="notesContainer"></div>
+            `;
+
+            container.appendChild(categorySection);
+
+            const categoryInput = categorySection.querySelector('input');
+            const selectInput = categorySection.querySelector('select');
+            const saveCategoryBtn = categorySection.querySelector('.saveCategoryBtn');
+            const editCategoryBtn = categorySection.querySelector('.editCategoryBtn');
+            const deleteCategoryBtn = categorySection.querySelector('.deleteCategoryBtn');
+            const addNoteBtn = categorySection.querySelector('.addNoteBtn');
+            const notesContainer = categorySection.querySelector('.notesContainer');
+
+            saveCategoryBtn.addEventListener('click', () => {
+                const data = {
+                    id: uniqueId,
+                    name: categoryInput.value,
+                    notes: Array.from(notesContainer.children).map(noteSection => {
+                        const noteInputs = noteSection.querySelectorAll('input');
+                        return {
+                            id: noteSection.dataset.noteId,
+                            title: noteInputs[0].value,
+                            content: noteInputs[1].value
+                        };
+                    })
+                };
+                socket.emit('saveCategory', data);
+                toggleCategoryEditable(categorySection, false);
+            });
+
+            editCategoryBtn.addEventListener('click', () => {
+                toggleCategoryEditable(categorySection, true);
+            });
+
+            deleteCategoryBtn.addEventListener('click', () => {
+                socket.emit('deleteCategory', uniqueId);
+                container.removeChild(categorySection);
+            });
+
+            addNoteBtn.addEventListener('click', () => {
+                addNoteSection(uniqueId, notesContainer);
+            });
+
+            notes.forEach(note => {
+                addNoteSection(uniqueId, notesContainer, note.id, note.title, note.content, false);
+            });
+        }
+
+        function addNoteSection(categoryId, container, noteId = null, title = '', content = '', isEditable = true) {
+            const noteSection = document.createElement('div');
+            const uniqueNoteId = noteId || uuid.v4();
+
+            noteSection.dataset.noteId = uniqueNoteId;
+            noteSection.innerHTML = `
+                <input type="text" placeholder="Title" value="${title}" ${!isEditable ? 'readonly' : ''}>
+                <input type="text" placeholder="Content" value="${content}" ${!isEditable ? 'readonly' : ''}>
+                <button class="saveNoteBtn" ${!isEditable ? 'style="display:none;"' : ''}>Save</button>
+                <button class="editNoteBtn" ${isEditable ? 'style="display:none;"' : ''}>Edit</button>
+                <button class="deleteNoteBtn">Delete</button>
+                <br>
+            `;
+
+            container.appendChild(noteSection);
+
+            const noteInputs = noteSection.querySelectorAll('input');
+            const saveNoteBtn = noteSection.querySelector('.saveNoteBtn');
+            const editNoteBtn = noteSection.querySelector('.editNoteBtn');
+            const deleteNoteBtn = noteSection.querySelector('.deleteNoteBtn');
+
+            saveNoteBtn.addEventListener('click', () => {
+                const data = {
+                    id: uniqueNoteId,
+                    title: noteInputs[0].value,
+                    content: noteInputs[1].value
+                };
+                socket.emit('saveNote', categoryId, data);
+                toggleNoteEditable(noteSection, false);
+            });
+
+            editNoteBtn.addEventListener('click', () => {
+                toggleNoteEditable(noteSection, true);
+            });
+
+            deleteNoteBtn.addEventListener('click', () => {
+                socket.emit('deleteNote', categoryId, uniqueNoteId);
+            });
+        }
+
+        function toggleCategoryEditable(section, isEditable) {
+            section.querySelector('input').readOnly = !isEditable;
+            section.querySelector('.saveCategoryBtn').style.display = isEditable ? '' : 'none';
+            section.querySelector('.editCategoryBtn').style.display = isEditable ? 'none' : '';
+        }
+
+        function toggleNoteEditable(section, isEditable) {
+            section.querySelector('input:nth-child(1)').readOnly = !isEditable;
+            section.querySelector('input:nth-child(2)').readOnly = !isEditable;
+            section.querySelector('.saveNoteBtn').style.display = isEditable ? '' : 'none';
+            section.querySelector('.editNoteBtn').style.display = isEditable ? 'none' : '';
+        }
+    </script>
+</body>
+</html>

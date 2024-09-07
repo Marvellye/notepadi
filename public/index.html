@@ -29,7 +29,7 @@
             saveTimeout = setTimeout(() => {
                 const content = noteField.value;
                 socket.emit('saveNote', { id: noteId, content });
-            }, 2000);
+            }, 100);
         });
 
         // Update note in real-time when other clients make changes

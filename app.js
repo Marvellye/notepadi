@@ -11,7 +11,7 @@ const FILE_PATH = path.join(__dirname, 'notes.json');
 app.use(express.static('public'));
 
 // Load existing notes
-let notes = {};
+let notes = { text: "", passwords: [] };
 if (fs.existsSync(FILE_PATH)) {
     notes = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
 }
@@ -27,13 +27,23 @@ io.on('connection', (socket) => {
     socket.emit('loadNotes', notes);
 
     socket.on('saveNote', (data) => {
-        notes[data.id] = data.content;
+        notes.text = data.content;
 
         // Save notes to file
         fs.writeFileSync(FILE_PATH, JSON.stringify(notes));
 
         // Broadcast the updated notes to all connected clients
         io.emit('noteUpdated', data);
+    });
+
+    socket.on('savePassword', (data) => {
+        notes.passwords.push(data);
+
+        // Save notes to file
+        fs.writeFileSync(FILE_PATH, JSON.stringify(notes));
+
+        // Broadcast the updated notes to all connected clients
+        io.emit('passwordUpdated', data);
     });
 });
 

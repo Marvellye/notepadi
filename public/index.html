@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Notepad</title>
+</head>
+<body>
+    <h1>Realtime Notepad</h1>
+    <textarea id="note" rows="10" cols="50" placeholder="Start typing..."></textarea>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const noteField = document.getElementById('note');
+        const noteId = 'note1';  // Assuming a single note for simplicity
+        let saveTimeout;
+
+        // Load existing notes
+        socket.on('loadNotes', (notes) => {
+            if (notes[noteId]) {
+                noteField.value = notes[noteId];
+            }
+        });
+
+        // Listen for changes in the textarea
+        noteField.addEventListener('keyup', () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const content = noteField.value;
+                socket.emit('saveNote', { id: noteId, content });
+            }, 2000);
+        });
+
+        // Update note in real-time when other clients make changes
+        socket.on('noteUpdated', (data) => {
+            if (data.id === noteId) {
+                noteField.value = data.content;
+            }
+        });
+    </script>
+</body>
+</html>

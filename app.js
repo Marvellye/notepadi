@@ -14,18 +14,21 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+    // Send initial data to the client
     socket.emit('loadData', process.getData());
 
+    // Handle Quicknote updates
     socket.on('saveQuickNote', (data) => {
         process.saveQuickNote(data.content);
-        io.emit('quicknoteUpdated', data);
+        io.emit('quicknoteUpdated', data.content); // Broadcast update to all clients
     });
 
     socket.on('resetQuickNote', () => {
         process.resetQuickNote();
-        io.emit('quicknoteReset');
+        io.emit('quicknoteReset'); // Broadcast reset to all clients
     });
 
+    // Handle Password actions
     socket.on('savePassword', (data) => {
         process.savePassword(data);
         io.emit('passwordUpdated', data);

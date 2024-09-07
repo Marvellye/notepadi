@@ -52,18 +52,13 @@
         // Quicknote handling
         const quicknoteField = document.getElementById('quicknote');
 
-        socket.on('loadData', (data) => {
-            if (data.quicknote) {
-                quicknoteField.value = data.quicknote;
-            }
+        // Listen for Quicknote updates from the server
+        socket.on('quicknoteUpdated', (content) => {
+            quicknoteField.value = content;
+        });
 
-            if (data.passwords) {
-                const passwordContainer = document.getElementById('passwordContainer');
-                passwordContainer.innerHTML = '';
-                data.passwords.forEach(password => {
-                    addPasswordSection(password.id, password.title, password.username, password.password, false);
-                });
-            }
+        socket.on('quicknoteReset', () => {
+            quicknoteField.value = '';
         });
 
         quicknoteField.addEventListener('keyup', () => {
@@ -79,10 +74,6 @@
             navigator.clipboard.writeText(quicknoteField.value)
                 .then(() => alert('Quicknote copied to clipboard!'))
                 .catch(err => alert('Failed to copy quicknote: ' + err));
-        });
-
-        socket.on('quicknoteReset', () => {
-            quicknoteField.value = '';
         });
 
         // Password handling
